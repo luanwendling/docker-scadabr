@@ -141,7 +141,11 @@ chmod +x backup_mysql_volume.sh
 ./backup_mysql_volume.sh
 ```
 
-⚠️ Este tipo de backup **não é portável** entre versões diferentes do MySQL.
+⚠️ Importante:
+
+Use este backup apenas para emergências.
+Ele NÃO funciona entre versões diferentes do MySQL (ex: 5.7 → 8.0).
+(ex: backup do MySQL 5.7 → restore no MySQL 5.7).
 
 ---
 
