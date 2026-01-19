@@ -45,7 +45,16 @@ Este repositório fornece um ambiente **ScadaBR 1.2** totalmente funcional utili
 
 ## 🚀 Como subir o ambiente
 
+Primeiramente instale o docker com o seguinte comando:
 ```bash
+
+curl -fsSL https://get.docker.com | bash
+```
+
+depois disso:
+
+```bash
+
 docker compose up -d --build
 ```
 
