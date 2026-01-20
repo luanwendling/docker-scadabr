@@ -1,14 +1,22 @@
-# ScadaBR 1.2 – Docker + MySQL (Production Ready)
+# ScadaBR 1.2 – Docker + MySQL (Startup Safe)
 
-Este repositório fornece um ambiente **ScadaBR 1.2** totalmente funcional utilizando **Docker Compose**, com:
+Este repositório fornece um ambiente **ScadaBR 1.2** totalmente funcional utilizando **Docker Compose**.
 
-* MySQL persistente
-* ScadaBR já extraído e configurado
-* Persistência de uploads
-* Timezone correto (America/Sao_Paulo)
+A solução implementada garante que o **Tomcat só inicia após o MySQL estar disponível**, tornando o ambiente **estável, previsível e pronto para produção**.
+
+---
+
+## ✅ Principais características
+
+* ScadaBR 1.2 em **Tomcat 9 (JDK 11)**
+* MySQL 5.7 com **persistência via volume**
+* **Correção de race condition** entre ScadaBR e MySQL
+* Inicialização segura usando `wait-for-mysql.sh`
+* Uploads persistentes
+* Timezone correto (`America/Sao_Paulo`)
 * Encoding UTF-8
-* Estrutura pronta para rebuild sem perda de dados
-* **Rotinas de backup do MySQL (dump e volume)**
+* Rebuild da imagem **sem perda de dados**
+* Scripts de backup (dump e volume)
 
 ---
 
@@ -18,14 +26,15 @@ Este repositório fornece um ambiente **ScadaBR 1.2** totalmente funcional utili
 .
 ├── docker-compose.yml
 ├── Dockerfile
+├── wait-for-mysql.sh
 ├── setenv.sh
 ├── backup_mysql_dump.sh
 ├── backup_mysql_volume.sh
-├── ScadaBR/
+├── ScadaBR/                # aplicação já extraída (exploded)
 │   ├── WEB-INF/
 │   ├── images/
 │   ├── resources/
-│   └── uploads/   # sobrescrito por volume
+│   └── uploads/            # sobrescrito por volume
 └── backup/
     └── mysql/
         └── dumps/
@@ -33,155 +42,116 @@ Este repositório fornece um ambiente **ScadaBR 1.2** totalmente funcional utili
 
 ---
 
-## 🧠 Arquitetura
-
-* **ScadaBR** roda em Tomcat 9 (JDK 11)
-* **MySQL 5.7** como banco de dados
-* **Volumes Docker** garantem persistência de dados
-* A pasta `uploads/` é persistida separadamente
-* Rebuild da imagem **não apaga configurações nem históricos**
-
----
-
 ## 🚀 Como subir o ambiente
 
-Primeiramente instale o docker com o seguinte comando:
-```bash
+### 1️⃣ Instalar Docker
 
+```bash
 curl -fsSL https://get.docker.com | bash
 ```
 
-depois disso:
+### 2️⃣ Subir o stack
 
 ```bash
-
 docker compose up -d --build
 ```
 
-* ScadaBR: http://localhost:8080
-* MySQL: porta 3306 (uso interno)
+A inicialização agora segue a ordem correta:
+
+1. MySQL sobe
+2. ScadaBR aguarda MySQL
+3. Tomcat inicia
+4. Banco é inicializado corretamente
+
+---
+
+## 🌐 Acesso
+
+* **ScadaBR:** [http://localhost:8080/ScadaBR](http://localhost:8080/ScadaBR)
+* **MySQL:** porta 3306 (uso interno)
 
 ---
 
 ## 🔑 Credenciais padrão
 
 ### ScadaBR
-* Usuário: admin
-* Senha: admin
+
+* Usuário: `admin`
+* Senha: `admin`
 
 ### MySQL
-* Database: scadabr
-* Usuário: scadabr
-* Senha: scadabr
+
+* Database: `scadabr`
+* Usuário: `scadabr`
+* Senha: `scadabr`
 
 ---
 
 ## 💾 Persistência de dados
 
 | Item                      | Persistência  |
-|---------------------------|---------------|
+| ------------------------- | ------------- |
 | Banco de dados            | Volume Docker |
 | Uploads                   | Volume Docker |
 | Data Sources / Históricos | MySQL         |
 
-⚠️ **Nunca utilize**:
+⚠️ **Nunca utilize em produção**:
+
 ```bash
 docker compose down -v
 ```
 
----
-
-## 🗄️ BACKUP DO MYSQL
-
-O projeto já inclui **dois métodos de backup**, pensados para ambientes Docker.
+Esse comando ira apagar tudo, e você ira perder seus dados do scadabr.
 
 ---
+
+## 🗄️ Backup do MySQL
 
 ### 1️⃣ Backup lógico (mysqldump)
 
-Script:
-```bash
-backup_mysql_dump.sh
-```
-
-O que ele faz:
-* Gera um arquivo `.sql`
-* Inclui estrutura + dados
-* Inclui triggers, procedures e routines
-* Compatível com restore em qualquer ambiente Docker
-
-Executar:
 ```bash
 chmod +x backup_mysql_dump.sh
 ./backup_mysql_dump.sh
 ```
 
-Exemplo de saída:
-```text
-[INFO] Criando backup lógico do MySQL...
-[OK] Backup criado: ./backup/mysql/dumps/scadabr_YYYYMMDD_HHMMSS.sql
-```
+Gera arquivos em:
 
-📁 Os backups ficam em:
-```text
+```
 backup/mysql/dumps/
 ```
 
-ℹ️ O script utiliza a flag `--no-tablespaces` para evitar erros de privilégio
-(`PROCESS`) comuns em containers MySQL.
+Inclui:
+
+* estrutura
+* dados
+* triggers
+* procedures
 
 ---
 
-### 2️⃣ Backup do volume MySQL (backup físico)
+### 2️⃣ Backup físico do volume
 
-Script:
-```bash
-backup_mysql_volume.sh
-```
-
-Esse método:
-* Copia diretamente os arquivos do volume MySQL
-* Útil para disaster recovery
-* Requer restore no **mesmo MySQL major version**
-
-Executar:
 ```bash
 chmod +x backup_mysql_volume.sh
 ./backup_mysql_volume.sh
 ```
+Gera arquivos em:
 
-⚠️ Importante:
-
-Use este backup apenas para emergências.
-Ele NÃO funciona entre versões diferentes do MySQL (ex: 5.7 → 8.0).
-(ex: backup do MySQL 5.7 → restore no MySQL 5.7).
-
----
-
-## ♻️ Restore de backup lógico (dump)
-
-```bash
-docker exec -i scadabr-mysql   mysql -uscadabr -pscadabr scadabr < backup/mysql/dumps/arquivo.sql
 ```
+backup/volumes/mysql/
+```
+
+⚠️ Use apenas para **disaster recovery**
+⚠️ Compatível somente com **MySQL 5.7 → 5.7**
 
 ---
 
 ## ☕ JVM / Tomcat (`setenv.sh`)
 
-Configuração de memória, encoding e timezone da JVM:
-
 ```bash
-export JAVA_OPTS="-Xms512m -Xmx2048m -XX:+UseG1GC -Dfile.encoding=UTF-8 -Duser.timezone=America/Sao_Paulo"
+export JAVA_OPTS="-Xms512m -Xmx2048m -XX:+UseG1GC -Djava.awt.headless=true -Dfile.encoding=UTF-8 
+-Dsun.jnu.encoding=UTF-8 -Duser.timezone=America/Sao_Paulo -Djava.util.PropertyResourceBundle.encoding=UTF-8"
 ```
-
----
-
-## 📌 Observações importantes
-
-* ScadaBR 1.2 é legado (Mango-based)
-* Backup lógico é o método recomendado
-* Volumes garantem persistência mesmo após rebuild
-* Ambiente pronto para produção e DR básico
 
 ---
 
@@ -189,14 +159,3 @@ export JAVA_OPTS="-Xms512m -Xmx2048m -XX:+UseG1GC -Dfile.encoding=UTF-8 -Duser.t
 
 Este repositório é apenas para fins educacionais e de infraestrutura.
 O ScadaBR é um software open-source mantido por seus respectivos autores.
-
----
-
-## ✅ Status do projeto
-
-✔️ Funcional  
-✔️ Persistente  
-✔️ Rebuild-safe  
-✔️ Backup-ready  
-✔️ Produção-ready
-
